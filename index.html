@@ -716,7 +716,7 @@ async function loadElVoices(silent = false) {
 
   try {
     const resp = await fetch(EL_PROXY(`${EL_URL}/voices`), {
-      headers: { 'Authorization': `Bearer ${key}` }
+      headers: { 'xi-api-key': key }
     });
 
     if (!resp.ok) {
@@ -767,7 +767,7 @@ async function speakElevenLabs(text) {
   try {
     const resp = await fetch(EL_PROXY(`${EL_URL}/text-to-speech/${elVoiceId}/stream`), {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${elKey}`, 'Content-Type': 'application/json' },
+      headers: { 'xi-api-key': elKey, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         text,
         model_id: 'eleven_multilingual_v2',
