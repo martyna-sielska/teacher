@@ -715,7 +715,7 @@ async function loadElVoices(silent = false) {
 
   try {
     const resp = await fetch(`${EL_URL}/voices`, {
-      headers: { 'xi-api-key': key, 'Authorization': `Bearer ${key}` }
+      headers: { 'Authorization': `Bearer ${key}` }
     });
 
     if (!resp.ok) {
@@ -737,9 +737,8 @@ async function loadElVoices(silent = false) {
     syncClassroomSelect();
 
   } catch (err) {
-    const isCors = err.message === 'Failed to fetch';
-    const msg = isCors
-      ? 'Błąd: ElevenLabs blokuje połączenia spoza HTTPS. Uruchom aplikację z GitHub Pages albo przełącz na głosy przeglądarki.'
+    const msg = err.message === 'Failed to fetch'
+      ? 'Nie udało się połączyć z ElevenLabs. Sprawdź połączenie z internetem lub czy rozszerzenia przeglądarki (np. AdBlock) nie blokują żądań.'
       : `Błąd: ${err.message}`;
     showElStatus('error', msg);
   }
@@ -767,7 +766,7 @@ async function speakElevenLabs(text) {
   try {
     const resp = await fetch(`${EL_URL}/text-to-speech/${elVoiceId}/stream`, {
       method: 'POST',
-      headers: { 'xi-api-key': elKey, 'Authorization': `Bearer ${elKey}`, 'Content-Type': 'application/json' },
+      headers: { 'Authorization': `Bearer ${elKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         text,
         model_id: 'eleven_multilingual_v2',
