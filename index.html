@@ -737,17 +737,11 @@ async function loadElVoices(silent = false) {
     syncClassroomSelect();
 
   } catch (err) {
-    if (!silent) {
-      /* Załaduj wbudowane głosy jako fallback */
-      elVoices = BUILTIN_VOICES;
-      elKey = key;
-      localStorage.setItem('tm_el_key', key);
-      fillVoiceSelect(BUILTIN_VOICES);
-      syncClassroomSelect();
-      showElStatus('ok',
-        `✓ Klucz działa! Wybierz głos z listy i kliknij ▶ Test.`
-      );
-    }
+    const isCors = err.message === 'Failed to fetch';
+    const msg = isCors
+      ? 'Błąd: ElevenLabs blokuje połączenia spoza HTTPS. Uruchom aplikację z GitHub Pages albo przełącz na głosy przeglądarki.'
+      : `Błąd: ${err.message}`;
+    showElStatus('error', msg);
   }
 
   get('el-load-btn').disabled = false;
@@ -794,7 +788,13 @@ async function speakElevenLabs(text) {
   } catch (err) {
     console.error('ElevenLabs TTS:', err);
     isSpeaking = false; ttsBtn.textContent = '🔊';
-    speakBrowser(text); // fallback
+    const isCors = err.message === 'Failed to fetch';
+    const errMsg = isCors
+      ? '⚠ ElevenLabs wymaga HTTPS (GitHub Pages). Przełącz na głosy przeglądarki.'
+      : `⚠ Błąd ElevenLabs: ${err.message}`;
+    const orig = questionText.textContent;
+    questionText.textContent = errMsg;
+    setTimeout(() => { questionText.textContent = orig; }, 5000);
   }
 }
 
@@ -840,7 +840,7 @@ function initTtsMode(mode) {
   syncClassroomSelect();
 
   // auto-load EL voices if key already saved
-  if (mode === 'elevenlabs' && elKey && !elVoices.length) loadElVoices(true);
+  if (mode === 'elevenlabs' && elKey && !elVoices.length) loadElVoices(false);
 }
 
 document.querySelectorAll('.vtab').forEach(t => t.addEventListener('click', () => initTtsMode(t.dataset.mode)));
