@@ -391,6 +391,7 @@ const MODEL_SMART  = 'llama-3.3-70b-versatile';
 const MODEL_FAST   = 'llama-3.1-8b-instant';
 const MODEL_VISION = 'meta-llama/llama-4-scout-17b-16e-instruct';
 const EL_URL       = 'https://api.elevenlabs.io/v1';
+const EL_PROXY     = url => `https://corsproxy.io/?${encodeURIComponent(url)}`;
 const STUDENT_IMGS = ['assets/boy1.png', 'assets/boy2.png', 'assets/girl1.png'];
 const DEFAULT_IMG  = 'assets/down.png';
 
@@ -714,7 +715,7 @@ async function loadElVoices(silent = false) {
   if (!silent) showElStatus('info', 'Pobieranie głosów…');
 
   try {
-    const resp = await fetch(`${EL_URL}/voices`, {
+    const resp = await fetch(EL_PROXY(`${EL_URL}/voices`), {
       headers: { 'Authorization': `Bearer ${key}` }
     });
 
@@ -764,7 +765,7 @@ get('el-test-btn').addEventListener('click', () => {
 
 async function speakElevenLabs(text) {
   try {
-    const resp = await fetch(`${EL_URL}/text-to-speech/${elVoiceId}/stream`, {
+    const resp = await fetch(EL_PROXY(`${EL_URL}/text-to-speech/${elVoiceId}/stream`), {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${elKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
