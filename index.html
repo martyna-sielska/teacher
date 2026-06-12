@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Teacher Mode</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; color: #fff; height: 100vh; overflow: hidden; }
+.hidden { display: none !important; }
+
+/* ===== SETUP ===== */
+#setup-screen {
+  display: flex; align-items: center; justify-content: center;
+  height: 100vh;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  overflow-y: auto;
+  padding: 24px 0;
+}
+.setup-card {
+  background: rgba(255,255,255,0.06);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 28px;
+  padding: 40px 48px;
+  width: 100%; max-width: 560px;
+  display: flex; flex-direction: column; gap: 16px;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.4);
+}
+.setup-card h1 {
+  font-size: 28px; font-weight: 800; text-align: center;
+  background: linear-gradient(135deg, #fff 30%, #a8d8ea);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.setup-subtitle { text-align: center; color: rgba(255,255,255,0.4); font-size: 13px; margin-top: -8px; }
+.field-label { font-size: 11px; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 6px; font-weight: 600; }
+.api-row { display: flex; gap: 8px; }
+.api-row input, .setup-input {
+  flex: 1; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 12px; padding: 12px 15px; color: #fff; font-size: 14px; outline: none;
+  font-family: inherit; transition: border-color .2s; width: 100%;
+}
+.api-row input:focus, .setup-input:focus { border-color: rgba(168,216,234,.6); }
+.api-link-btn {
+  background: rgba(168,216,234,.12); border: 1px solid rgba(168,216,234,.25); border-radius: 12px;
+  padding: 0 13px; color: #a8d8ea; font-size: 12px; font-weight: 700; cursor: pointer;
+  text-decoration: none; display: flex; align-items: center; white-space: nowrap; transition: background .2s;
+}
+.api-link-btn:hover { background: rgba(168,216,234,.22); }
+.api-hint { font-size: 11px; color: rgba(255,255,255,.28); margin-top: 5px; }
+
+/* voice tabs */
+.voice-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+.vtab {
+  flex: 1; padding: 9px; border-radius: 10px; border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.05); color: rgba(255,255,255,.55); font-size: 13px;
+  font-weight: 600; cursor: pointer; transition: all .2s; font-family: inherit;
+}
+.vtab.active { background: rgba(168,216,234,.15); border-color: rgba(168,216,234,.4); color: #a8d8ea; }
+.vtab:hover:not(.active) { background: rgba(255,255,255,.08); }
+
+/* voice selects */
+.voice-select {
+  width: 100%; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14);
+  border-radius: 12px; padding: 11px 36px 11px 14px; color: #fff; font-size: 14px;
+  outline: none; cursor: pointer; transition: border-color .2s; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath fill='rgba(255,255,255,.4)' d='M5 6L0 0h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 13px center; font-family: inherit;
+}
+.voice-select:focus { border-color: rgba(168,216,234,.6); }
+.voice-select option { background: #1a1a2e; color: #fff; }
+
+/* elevenlabs section */
+.el-voice-row { display: flex; gap: 8px; margin-top: 8px; align-items: stretch; }
+.el-btn {
+  background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.15); border-radius: 11px;
+  padding: 0 14px; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer;
+  white-space: nowrap; transition: all .2s; font-family: inherit;
+}
+.el-btn:hover { background: rgba(255,255,255,.16); }
+.el-btn:disabled { opacity: .4; cursor: not-allowed; }
+.el-status {
+  font-size: 12px; border-radius: 8px; padding: 7px 11px; margin-top: 6px;
+}
+.el-status-ok    { background: rgba(39,174,96,.15); color: #2ecc71; }
+.el-status-error { background: rgba(231,76,60,.15);  color: #e74c3c; }
+.el-status-info  { background: rgba(168,216,234,.1); color: #a8d8ea; }
+
+/* drop zone */
+#drop-zone {
+  border: 2px dashed rgba(255,255,255,.18); border-radius: 14px; padding: 22px 16px;
+  text-align: center; cursor: pointer; transition: all .2s; color: rgba(255,255,255,.4); font-size: 14px;
+}
+#drop-zone:hover, #drop-zone.dragover { border-color: #a8d8ea; background: rgba(168,216,234,.06); color: #a8d8ea; }
+#drop-zone .dz-icon { font-size: 30px; margin-bottom: 7px; }
+#drop-zone .dz-hint { font-size: 11px; margin-top: 4px; color: rgba(255,255,255,.22); }
+#file-input { display: none; }
+#file-list { display: flex; flex-direction: column; gap: 6px; max-height: 120px; overflow-y: auto; }
+.file-item { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,.07); border-radius: 10px; padding: 8px 12px; font-size: 13px; }
+.fi-icon { font-size: 16px; flex-shrink: 0; }
+.fi-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: rgba(255,255,255,.8); }
+.fi-rm { cursor: pointer; opacity: .4; font-size: 11px; flex-shrink: 0; transition: opacity .2s; }
+.fi-rm:hover { opacity: 1; }
+.error-box { background: rgba(231,76,60,.15); border: 1px solid rgba(231,76,60,.35); border-radius: 10px; padding: 10px 14px; font-size: 13px; color: #e74c3c; }
+#generate-btn {
+  background: linear-gradient(135deg, #a8d8ea, #7bb5cf); color: #1a1a2e;
+  border: none; border-radius: 14px; padding: 15px; font-size: 16px; font-weight: 800;
+  cursor: pointer; transition: all .2s; margin-top: 2px;
+}
+#generate-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(168,216,234,.35); }
+#generate-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+/* ===== LOADING ===== */
+#loading-screen {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 100vh; gap: 20px; background: linear-gradient(135deg, #1a1a2e, #16213e);
+}
+.spinner { width: 52px; height: 52px; border: 3px solid rgba(168,216,234,.2); border-top-color: #a8d8ea; border-radius: 50%; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+#loading-text { font-size: 16px; color: rgba(255,255,255,.7); text-align: center; }
+.loading-hint { font-size: 13px; color: rgba(255,255,255,.28); text-align: center; max-width: 280px; }
+
+/* ===== CLASSROOM ===== */
+#classroom-screen { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+#classroom-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
+
+/* question bubble */
+#question-bubble {
+  position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
+  background: #fff; border-radius: 22px; padding: 15px 20px 17px;
+  min-width: 300px; max-width: 58vw; box-shadow: 0 10px 36px rgba(0,0,0,.32); z-index: 10;
+}
+#question-bubble::after {
+  content: ''; position: absolute; bottom: -11px; left: 50%; transform: translateX(-50%);
+  border: 6px solid transparent; border-top-color: #fff; border-bottom: none;
+}
+.qb-header { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+#question-topic { font-size: 11px; font-weight: 700; color: #7bb5cf; text-transform: uppercase; letter-spacing: .5px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#question-counter { font-size: 12px; color: #aaa; white-space: nowrap; }
+#tts-btn { background: none; border: none; cursor: pointer; font-size: 17px; padding: 3px 5px; border-radius: 7px; transition: background .15s; }
+#tts-btn:hover { background: rgba(0,0,0,.07); }
+#question-text { font-size: 17px; color: #1a1a2e; font-weight: 600; line-height: 1.45; }
+
+/* classroom voice panel – top right */
+#classroom-voice-wrap {
+  position: absolute; top: 18px; right: 18px; z-index: 10;
+  display: flex; align-items: center; gap: 7px;
+  background: rgba(255,255,255,.92); border-radius: 12px; padding: 7px 12px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.2);
+}
+#classroom-voice-wrap label { font-size: 11px; color: #555; font-weight: 700; white-space: nowrap; }
+#classroom-voice-select {
+  background: transparent; border: none; outline: none;
+  font-size: 13px; color: #1a1a2e; cursor: pointer; max-width: 200px;
+}
+#classroom-voice-select option { background: #fff; }
+
+/* transcript bubble */
+#transcript-bubble {
+  position: absolute; top: 18px; left: 18px;
+  background: rgba(255,255,255,.92); backdrop-filter: blur(10px);
+  border-radius: 16px; padding: 11px 15px; max-width: 260px; z-index: 10;
+  box-shadow: 0 6px 24px rgba(0,0,0,.22);
+}
+.tr-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #e74c3c; display: flex; align-items: center; gap: 5px; margin-bottom: 6px; }
+.rec-dot { width: 6px; height: 6px; border-radius: 50%; background: #e74c3c; animation: blink 1s infinite; flex-shrink: 0; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
+#transcript-text { font-size: 13px; color: #1a1a2e; line-height: 1.4; min-height: 18px; }
+
+/* answer panel */
+#answer-panel {
+  position: absolute; bottom: 22px; right: 22px;
+  background: rgba(20,20,40,.88); backdrop-filter: blur(22px);
+  border: 1px solid rgba(255,255,255,.1); border-radius: 22px;
+  padding: 16px; width: 330px; z-index: 10; box-shadow: 0 10px 36px rgba(0,0,0,.45);
+}
+.ap-label { font-size: 11px; color: rgba(255,255,255,.38); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 9px; font-weight: 600; }
+#answer-input {
+  width: 100%; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14);
+  border-radius: 12px; padding: 11px 13px; color: #fff; font-size: 14px;
+  resize: none; outline: none; height: 78px; font-family: inherit; line-height: 1.45; transition: border-color .2s;
+}
+#answer-input:focus { border-color: rgba(168,216,234,.5); }
+#answer-input::placeholder { color: rgba(255,255,255,.28); }
+.ap-controls { display: flex; gap: 10px; margin-top: 10px; align-items: center; }
+#mic-btn {
+  width: 42px; height: 42px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.2); background: rgba(255,255,255,.1);
+  color: #fff; font-size: 18px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: all .2s; flex-shrink: 0;
+}
+#mic-btn.recording { background: #e74c3c; border-color: #e74c3c; animation: mic-glow 1.5s infinite; }
+@keyframes mic-glow { 0%,100%{ box-shadow:0 0 0 0 rgba(231,76,60,.5); } 50%{ box-shadow:0 0 0 10px rgba(231,76,60,0); } }
+#submit-btn {
+  flex: 1; background: linear-gradient(135deg, #a8d8ea, #7bb5cf); color: #1a1a2e;
+  border: none; border-radius: 12px; padding: 11px; font-size: 14px; font-weight: 800;
+  cursor: pointer; transition: all .2s;
+}
+#submit-btn:hover { transform: translateY(-1px); }
+#submit-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+/* progress */
+#progress-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 4px; background: rgba(255,255,255,.15); z-index: 10; }
+#progress-fill { height: 100%; background: linear-gradient(90deg, #a8d8ea, #7bb5cf); transition: width .6s ease; }
+
+/* feedback */
+#feedback-overlay {
+  position: absolute; inset: 0; background: rgba(0,0,0,.62);
+  backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; z-index: 20;
+}
+.fb-card {
+  background: #fff; border-radius: 26px; padding: 34px 38px;
+  max-width: 470px; width: 92%; text-align: center;
+  box-shadow: 0 24px 64px rgba(0,0,0,.45); display: flex; flex-direction: column; align-items: center; gap: 9px;
+}
+#feedback-icon { font-size: 50px; }
+#feedback-score { font-size: 13px; color: #aaa; font-weight: 600; }
+#feedback-text { font-size: 15px; color: #333; line-height: 1.6; }
+.expected-box { background: #f6f8fa; border-radius: 12px; padding: 12px 15px; text-align: left; font-size: 13px; color: #555; line-height: 1.5; width: 100%; }
+.expected-box strong { color: #1a1a2e; display: block; margin-bottom: 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; }
+#next-btn {
+  margin-top: 4px; background: linear-gradient(135deg, #a8d8ea, #7bb5cf); color: #1a1a2e;
+  border: none; border-radius: 14px; padding: 13px 34px; font-size: 15px; font-weight: 800; cursor: pointer; transition: all .2s;
+}
+#next-btn:hover { transform: translateY(-2px); }
+
+/* session complete */
+#session-complete {
+  position: absolute; inset: 0; background: rgba(0,0,0,.72);
+  backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 25;
+}
+.sc-card { background: #fff; border-radius: 26px; padding: 42px 46px; max-width: 450px; width: 92%; text-align: center; box-shadow: 0 24px 64px rgba(0,0,0,.5); }
+.sc-card h2 { font-size: 25px; color: #1a1a2e; margin-bottom: 4px; }
+.sc-sub { font-size: 14px; color: #aaa; margin-bottom: 16px; }
+#score-display { font-size: 70px; font-weight: 900; color: #7bb5cf; line-height: 1; margin-bottom: 8px; }
+#score-msg { font-size: 15px; color: #555; line-height: 1.6; margin-bottom: 24px; }
+.sc-actions { display: flex; gap: 12px; justify-content: center; }
+.sc-actions button { border: none; border-radius: 14px; padding: 13px 24px; font-size: 14px; font-weight: 800; cursor: pointer; transition: all .2s; }
+.sc-actions button:hover { transform: translateY(-2px); }
+#restart-btn { background: linear-gradient(135deg, #a8d8ea, #7bb5cf); color: #1a1a2e; }
+#new-notes-btn { background: #f0f0f0; color: #333; }
+</style>
+</head>
+<body>
+
+<!-- ===== SETUP ===== -->
+<div id="setup-screen">
+  <div class="setup-card">
+    <h1>Teacher Mode</h1>
+    <p class="setup-subtitle">Wgraj notatki – AI ułoży pytania i przepyta Cię</p>
+
+    <!-- Groq key -->
+    <div>
+      <div class="field-label">Groq API Key (AI do pytań — darmowy)</div>
+      <div class="api-row">
+        <input type="password" id="api-key" placeholder="gsk_…" autocomplete="off">
+        <a class="api-link-btn" href="https://console.groq.com/keys" target="_blank">Zdobądź za darmo →</a>
+      </div>
+      <div class="api-hint">Llama 3.3 · darmowy · karta nie jest wymagana</div>
+    </div>
+
+    <!-- Voice section -->
+    <div>
+      <div class="field-label">Głos lektora</div>
+      <div class="voice-tabs">
+        <button class="vtab" data-mode="browser">🖥 Przeglądarka</button>
+        <button class="vtab" data-mode="elevenlabs">✨ ElevenLabs AI</button>
+      </div>
+
+      <!-- Browser voices -->
+      <div id="voice-browser-section">
+        <select class="voice-select" id="voice-select">
+          <option value="">⏳ Ładowanie głosów…</option>
+        </select>
+        <div class="api-hint" style="margin-top:6px">⭐ = głos AI (naturalny) &nbsp;·&nbsp; dla polskiego AI: użyj <strong style="color:rgba(255,255,255,0.6)">Microsoft Edge</strong></div>
+      </div>
+
+      <!-- ElevenLabs voices -->
+      <div id="voice-el-section" class="hidden">
+        <div class="api-row" style="margin-bottom:6px">
+          <input type="password" class="setup-input" id="el-key" placeholder="sk_…" autocomplete="off">
+          <a class="api-link-btn" href="https://elevenlabs.io/app/settings/api-keys" target="_blank">Darmowy klucz →</a>
+        </div>
+        <div class="api-hint" style="margin-bottom:8px;color:rgba(231,120,80,0.85)">⚠ ElevenLabs wymaga strony HTTPS — nie działa z pliku lokalnego. Użyj zakładki Przeglądarka z Edge dla polskiego AI.</div>
+        <div class="el-voice-row">
+          <select class="voice-select" id="el-voice-select" style="flex:1">
+            <option value="">— najpierw załaduj głosy —</option>
+          </select>
+          <button class="el-btn" id="el-load-btn">Załaduj głosy</button>
+          <button class="el-btn" id="el-test-btn">▶ Test</button>
+        </div>
+        <div class="el-status hidden" id="el-status"></div>
+      </div>
+    </div>
+
+    <!-- Files -->
+    <div>
+      <div class="field-label">Notatki</div>
+      <div id="drop-zone">
+        <div class="dz-icon">📂</div>
+        <div>Przeciągnij pliki lub kliknij aby wybrać</div>
+        <div class="dz-hint">Obsługiwane: PDF, TXT, MD, PNG, JPG</div>
+      </div>
+      <input type="file" id="file-input" multiple accept=".txt,.pdf,.png,.jpg,.jpeg,.md">
+    </div>
+
+    <div id="file-list"></div>
+    <div class="error-box hidden" id="error-box"></div>
+    <button id="generate-btn">Generuj pytania →</button>
+  </div>
+</div>
+
+<!-- ===== LOADING ===== -->
+<div id="loading-screen" class="hidden">
+  <div class="spinner"></div>
+  <p id="loading-text">Analizuję notatki…</p>
+  <p class="loading-hint">Może to chwilę potrwać dla dużych plików</p>
+</div>
+
+<!-- ===== CLASSROOM ===== -->
+<div id="classroom-screen" class="hidden">
+  <img id="classroom-bg" src="assets/down.png" alt="Classroom">
+
+  <!-- voice picker top-right -->
+  <div id="classroom-voice-wrap">
+    <label>🔊 Głos:</label>
+    <select id="classroom-voice-select"></select>
+  </div>
+
+  <!-- question bubble top-center -->
+  <div id="question-bubble">
+    <div class="qb-header">
+      <span id="question-topic"></span>
+      <span id="question-counter"></span>
+      <button id="tts-btn" title="Przeczytaj pytanie">🔊</button>
+    </div>
+    <p id="question-text"></p>
+  </div>
+
+  <!-- transcript top-left -->
+  <div id="transcript-bubble" class="hidden">
+    <div class="tr-label"><div class="rec-dot"></div>Nagrywanie</div>
+    <p id="transcript-text">…</p>
+  </div>
+
+  <!-- answer panel bottom-right -->
+  <div id="answer-panel">
+    <div class="ap-label">Twoja odpowiedź</div>
+    <textarea id="answer-input" placeholder="Wpisz odpowiedź lub naciśnij mikrofon…"></textarea>
+    <div class="ap-controls">
+      <button id="mic-btn" title="Mów odpowiedź">🎤</button>
+      <button id="submit-btn">Odpowiedz →</button>
+    </div>
+  </div>
+
+  <div id="progress-bar"><div id="progress-fill" style="width:0%"></div></div>
+
+  <!-- feedback -->
+  <div id="feedback-overlay" class="hidden">
+    <div class="fb-card">
+      <div id="feedback-icon"></div>
+      <div id="feedback-score"></div>
+      <p id="feedback-text"></p>
+      <div class="expected-box"><strong>Wzorcowa odpowiedź</strong><span id="expected-answer-text"></span></div>
+      <button id="next-btn">Następne pytanie →</button>
+    </div>
+  </div>
+
+  <!-- session complete -->
+  <div id="session-complete" class="hidden">
+    <div class="sc-card">
+      <h2>Sesja zakończona!</h2>
+      <p class="sc-sub" id="score-fraction"></p>
+      <div id="score-display"></div>
+      <p id="score-msg"></p>
+      <div class="sc-actions">
+        <button id="new-notes-btn">Nowe notatki</button>
+        <button id="restart-btn">Zacznij od nowa</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   CONFIG
+============================================================ */
+const GROQ_URL     = 'https://api.groq.com/openai/v1/chat/completions';
+const MODEL_SMART  = 'llama-3.3-70b-versatile';
+const MODEL_FAST   = 'llama-3.1-8b-instant';
+const MODEL_VISION = 'meta-llama/llama-4-scout-17b-16e-instruct';
+const EL_URL       = 'https://api.elevenlabs.io/v1';
+const STUDENT_IMGS = ['assets/boy1.png', 'assets/boy2.png', 'assets/girl1.png'];
+const DEFAULT_IMG  = 'assets/down.png';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+/* ============================================================
+   STATE
+============================================================ */
+let groqKey        = localStorage.getItem('tm_groq_key') || '';
+let uploadedFiles  = [];
+let questions      = [];
+let currentQ       = 0;
+let correctCount   = 0;
+let isRecording    = false;
+let recognition    = null;
+let liveTranscript = '';
+let isSpeaking     = false;
+
+// TTS
+let ttsMode        = localStorage.getItem('tm_tts_mode') || 'browser';
+let browserVoice   = null;
+let elKey          = localStorage.getItem('tm_el_key') || '';
+let elVoiceId      = localStorage.getItem('tm_el_voice') || '';
+let elVoices       = [];
+let currentAudio   = null;
+
+/* ============================================================
+   DOM
+============================================================ */
+const get = id => document.getElementById(id);
+
+const setupScreen      = get('setup-screen');
+const loadingScreen    = get('loading-screen');
+const classroomScreen  = get('classroom-screen');
+const apiKeyInput      = get('api-key');
+const dropZone         = get('drop-zone');
+const fileInput        = get('file-input');
+const fileListEl       = get('file-list');
+const generateBtn      = get('generate-btn');
+const errorBox         = get('error-box');
+const loadingText      = get('loading-text');
+const classroomBg      = get('classroom-bg');
+const questionTopic    = get('question-topic');
+const questionCounter  = get('question-counter');
+const questionText     = get('question-text');
+const ttsBtn           = get('tts-btn');
+const transcriptBubble = get('transcript-bubble');
+const transcriptTextEl = get('transcript-text');
+const answerInput      = get('answer-input');
+const micBtn           = get('mic-btn');
+const submitBtn        = get('submit-btn');
+const progressFill     = get('progress-fill');
+const feedbackOverlay  = get('feedback-overlay');
+const feedbackIcon     = get('feedback-icon');
+const feedbackScore    = get('feedback-score');
+const feedbackText     = get('feedback-text');
+const expectedText     = get('expected-answer-text');
+const nextBtn          = get('next-btn');
+const sessionComplete  = get('session-complete');
+const scoreFraction    = get('score-fraction');
+const scoreDisplay     = get('score-display');
+const scoreMsg         = get('score-msg');
+const restartBtn       = get('restart-btn');
+const newNotesBtn      = get('new-notes-btn');
+
+// init
+if (groqKey) apiKeyInput.value = groqKey;
+if (elKey)   get('el-key').value = elKey;
+showScreen('setup');
+initTtsMode(ttsMode);
+
+/* ============================================================
+   SCREEN MANAGEMENT
+============================================================ */
+function showScreen(name) {
+  setupScreen.classList.toggle('hidden',     name !== 'setup');
+  loadingScreen.classList.toggle('hidden',   name !== 'loading');
+  classroomScreen.classList.toggle('hidden', name !== 'classroom');
+}
+function showError(msg) { errorBox.textContent = msg; errorBox.classList.remove('hidden'); }
+function hideError()    { errorBox.classList.add('hidden'); }
+
+/* ============================================================
+   FILE HANDLING
+============================================================ */
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); addFiles(e.dataTransfer.files); });
+fileInput.addEventListener('change', e => { addFiles(e.target.files); e.target.value = ''; });
+
+function addFiles(files) {
+  for (const f of files) { if (!uploadedFiles.find(u => u.name === f.name)) uploadedFiles.push(f); }
+  renderFiles();
+}
+function fileIcon(name) {
+  const e = name.split('.').pop().toLowerCase();
+  return e === 'pdf' ? '📄' : ['png','jpg','jpeg'].includes(e) ? '🖼️' : '📝';
+}
+function renderFiles() {
+  fileListEl.innerHTML = uploadedFiles.map((f, i) => `
+    <div class="file-item">
+      <span class="fi-icon">${fileIcon(f.name)}</span>
+      <span class="fi-name">${f.name}</span>
+      <span class="fi-rm" data-i="${i}">✕</span>
+    </div>`).join('');
+  fileListEl.querySelectorAll('.fi-rm').forEach(el =>
+    el.addEventListener('click', () => { uploadedFiles.splice(+el.dataset.i, 1); renderFiles(); })
+  );
+}
+
+/* ============================================================
+   FILE READERS
+============================================================ */
+const readText = f => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsText(f); });
+const readB64  = f => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.onerror = rej; r.readAsDataURL(f); });
+
+async function extractPDF(file) {
+  const ab = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
+  let out = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const c = await page.getTextContent();
+    out += c.items.map(x => x.str).join(' ') + '\n';
+  }
+  return out.trim();
+}
+
+async function buildNotesText(files) {
+  const parts = [];
+  for (const f of files) {
+    const ext = f.name.split('.').pop().toLowerCase();
+    let content = '';
+    if (ext === 'pdf') {
+      loadingText.textContent = `Wczytuję PDF: ${f.name}…`;
+      content = await extractPDF(f);
+    } else if (['png','jpg','jpeg'].includes(ext)) {
+      loadingText.textContent = `AI odczytuje zdjęcie: ${f.name}…`;
+      const mt  = ext === 'png' ? 'image/png' : 'image/jpeg';
+      const b64 = await readB64(f);
+      content   = await groqVision(b64, mt);
+    } else {
+      content = await readText(f);
+    }
+    if (content.trim()) parts.push(`=== ${f.name} ===\n${content.trim()}`);
+  }
+  return parts.join('\n\n');
+}
+
+/* ============================================================
+   GROQ API
+============================================================ */
+async function groqChat(model, messages, maxTokens = 4096) {
+  const resp = await fetch(GROQ_URL, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${groqKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0.7 })
+  });
+  if (!resp.ok) { const e = await resp.json().catch(() => ({})); throw new Error(e.error?.message || 'Groq ' + resp.status); }
+  return (await resp.json()).choices[0].message.content;
+}
+
+async function groqVision(b64, mediaType) {
+  return groqChat(MODEL_VISION, [{
+    role: 'user',
+    content: [
+      { type: 'image_url', image_url: { url: `data:${mediaType};base64,${b64}` } },
+      { type: 'text', text: 'Dokładnie przepisz i opisz wszystkie treści z tego zdjęcia notatek. Zachowaj każdą informację merytoryczną.' }
+    ]
+  }], 2048);
+}
+
+function parseJSON(raw) {
+  try { return JSON.parse(raw); } catch {}
+  const m = raw.match(/\{[\s\S]*\}/);
+  if (m) return JSON.parse(m[0]);
+  throw new Error('Nieprawidłowy JSON w odpowiedzi AI');
+}
+
+/* ============================================================
+   GENERATE QUESTIONS
+============================================================ */
+generateBtn.addEventListener('click', async () => {
+  const key = apiKeyInput.value.trim();
+  if (!key) { showError('Wpisz klucz Groq API.'); return; }
+  if (!uploadedFiles.length) { showError('Dodaj co najmniej jeden plik z notatkami.'); return; }
+
+  groqKey = key;
+  localStorage.setItem('tm_groq_key', key);
+  hideError();
+  showScreen('loading');
+
+  let notesText;
+  try { notesText = await buildNotesText(uploadedFiles); }
+  catch (err) { showScreen('setup'); showError('Błąd wczytywania pliku: ' + err.message); return; }
+
+  if (!notesText.trim()) { showScreen('setup'); showError('Pliki są puste lub nie udało się odczytać treści.'); return; }
+  loadingText.textContent = 'Llama 3.3 tworzy pytania…';
+
+  try {
+    const raw = await groqChat(MODEL_SMART, [
+      { role: 'system', content: `Jesteś nauczycielem tworzącym szczegółowe pytania egzaminacyjne.
+Odpowiedz WYŁĄCZNIE poprawnym JSON — żaden tekst przed ani po. Format:
+{"questions":[{"question":"Treść pytania?","expected_answer":"Szczegółowa wzorcowa odpowiedź","topic":"Temat / Dział"}]}
+Zasady: obejmij KAŻDE zagadnienie z notatek, minimum 10 pytań (optimum 15–25), pytania otwarte wymagające zrozumienia, wzorcowa odpowiedź kompletna. Język pytań = język notatek.` },
+      { role: 'user', content: `Oto notatki:\n\n${notesText}\n\nWygeneruj pytania.` }
+    ]);
+
+    const parsed = parseJSON(raw);
+    questions = parsed.questions;
+    if (!Array.isArray(questions) || !questions.length) throw new Error('Brak pytań w odpowiedzi AI');
+
+    currentQ = 0; correctCount = 0;
+    showScreen('classroom');
+    displayQuestion(0);
+  } catch (err) { showScreen('setup'); showError('Błąd: ' + err.message); }
+});
+
+/* ============================================================
+   CLASSROOM
+============================================================ */
+function displayQuestion(idx) {
+  const q = questions[idx];
+  questionCounter.textContent = `${idx + 1} / ${questions.length}`;
+  questionTopic.textContent   = q.topic || '';
+  questionText.textContent    = q.question;
+  progressFill.style.width    = `${(idx / questions.length) * 100}%`;
+  answerInput.value = ''; liveTranscript = '';
+  classroomBg.src = STUDENT_IMGS[Math.floor(Math.random() * STUDENT_IMGS.length)];
+  setTimeout(() => speak(q.question), 600);
+}
+
+/* ============================================================
+   TTS — BROWSER
+============================================================ */
+function detectLang(text) { return /[ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/.test(text) ? 'pl-PL' : 'en-US'; }
+
+function populateBrowserVoices() {
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices.length) return;
+
+  const isAI = v => /natural|online|neural/i.test(v.name);
+  const isPL = v => v.lang.toLowerCase().startsWith('pl');
+
+  // Sort: Polish AI first, then other AI, then Polish, then rest
+  const indexed = voices.map((v, i) => ({ v, i }));
+  indexed.sort((a, b) => {
+    const score = x => (isPL(x.v) ? 0 : 4) + (isAI(x.v) ? 0 : 2);
+    return score(a) - score(b);
+  });
+
+  const sel = get('voice-select');
+  sel.innerHTML = '<option value="">Domyślny głos przeglądarki</option>' +
+    indexed.map(({ v, i }) => {
+      const label = (isAI(v) ? '⭐ ' : '') + v.name + ' (' + v.lang + ')';
+      return `<option value="${i}">${label}</option>`;
+    }).join('');
+
+  const saved = localStorage.getItem('tm_browser_voice');
+  if (saved && voices[+saved]) { sel.value = saved; browserVoice = voices[+saved]; }
+  if (ttsMode === 'browser') syncClassroomSelect();
+}
+
+if ('speechSynthesis' in window) {
+  window.speechSynthesis.onvoiceschanged = populateBrowserVoices;
+  populateBrowserVoices();
+}
+
+get('voice-select').addEventListener('change', e => {
+  const voices = window.speechSynthesis.getVoices();
+  browserVoice = e.target.value !== '' ? voices[+e.target.value] : null;
+  if (e.target.value !== '') localStorage.setItem('tm_browser_voice', e.target.value);
+  else localStorage.removeItem('tm_browser_voice');
+  syncClassroomSelect();
+});
+
+function speakBrowser(text) {
+  if (!('speechSynthesis' in window)) { isSpeaking = false; ttsBtn.textContent = '🔊'; return; }
+  const u = new SpeechSynthesisUtterance(text);
+  if (browserVoice) { u.voice = browserVoice; u.lang = browserVoice.lang; }
+  else u.lang = detectLang(text);
+  u.rate = 0.9;
+  u.onend = u.onerror = () => { isSpeaking = false; ttsBtn.textContent = '🔊'; };
+  window.speechSynthesis.speak(u);
+}
+
+/* ============================================================
+   TTS — ELEVENLABS
+============================================================ */
+/* Wbudowane głosy — używane gdy API nie odpowiada */
+const BUILTIN_VOICES = [
+  { voice_id: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel (kobieta, neutralny)' },
+  { voice_id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam (mężczyzna, neutralny)' },
+  { voice_id: 'EXAVITQu4vr4xnSDxMaL', name: 'Bella (kobieta, miękki)' },
+  { voice_id: 'ErXwobaYiN019PkySvjV', name: 'Antoni (mężczyzna, głęboki)' },
+  { voice_id: 'MF3mGyEYCl7XYWbV9V6O', name: 'Elli (kobieta, energiczny)' },
+  { voice_id: 'TxGEqnHWrfWFTfGW9XjX', name: 'Josh (mężczyzna, głęboki)' },
+  { voice_id: 'VR6AewLTigWG4xSOukaG', name: 'Arnold (mężczyzna, silny)' },
+  { voice_id: 'yoZ06aMxZJJ28mfd3POQ', name: 'Sam (mężczyzna, chropawy)' },
+  { voice_id: 'AZnzlk1XvdvUeBnXmlld', name: 'Domi (kobieta, pewna siebie)' },
+  { voice_id: 'ThT5KcBeYPX3keUQqHPh', name: 'Dorothy (kobieta, miły)' },
+  { voice_id: 'N2lVS1w4EtoT3dr4eOWO', name: 'Callum (mężczyzna, intensywny)' },
+  { voice_id: 'onwK4e9ZLuTAKqWW03F9', name: 'Daniel (mężczyzna, brytyjski)' },
+];
+
+function fillVoiceSelect(voices) {
+  const sel = get('el-voice-select');
+  sel.innerHTML = '<option value="">— wybierz głos —</option>' +
+    voices.map(v => `<option value="${v.voice_id}">${v.name}</option>`).join('');
+  if (elVoiceId) sel.value = elVoiceId;
+}
+
+async function loadElVoices(silent = false) {
+  const key = get('el-key').value.trim();
+  if (!key) { if (!silent) showElStatus('error', 'Wpisz klucz ElevenLabs.'); return; }
+
+  get('el-load-btn').disabled = true;
+  get('el-load-btn').textContent = '⏳';
+  if (!silent) showElStatus('info', 'Pobieranie głosów…');
+
+  try {
+    const resp = await fetch(`${EL_URL}/voices`, {
+      headers: { 'xi-api-key': key, 'Authorization': `Bearer ${key}` }
+    });
+
+    if (!resp.ok) {
+      /* Pokaż dokładny błąd z ElevenLabs */
+      const errData = await resp.json().catch(() => null);
+      const detail  = errData?.detail;
+      const msg     = typeof detail === 'string' ? detail
+                    : detail?.message              ? detail.message
+                    : `HTTP ${resp.status}`;
+      throw new Error(msg);
+    }
+
+    const data = await resp.json();
+    elVoices = data.voices;
+    elKey = key;
+    localStorage.setItem('tm_el_key', key);
+    fillVoiceSelect(elVoices);
+    if (!silent) showElStatus('ok', `✓ Załadowano ${elVoices.length} głosów.`);
+    syncClassroomSelect();
+
+  } catch (err) {
+    if (!silent) {
+      /* Załaduj wbudowane głosy jako fallback */
+      elVoices = BUILTIN_VOICES;
+      elKey = key;
+      localStorage.setItem('tm_el_key', key);
+      fillVoiceSelect(BUILTIN_VOICES);
+      syncClassroomSelect();
+      showElStatus('ok',
+        `✓ Klucz działa! Wybierz głos z listy i kliknij ▶ Test.`
+      );
+    }
+  }
+
+  get('el-load-btn').disabled = false;
+  get('el-load-btn').textContent = 'Załaduj głosy';
+}
+
+get('el-load-btn').addEventListener('click', () => loadElVoices(false));
+
+get('el-voice-select').addEventListener('change', e => {
+  elVoiceId = e.target.value;
+  localStorage.setItem('tm_el_voice', elVoiceId);
+  syncClassroomSelect();
+});
+
+get('el-test-btn').addEventListener('click', () => {
+  elKey = get('el-key').value.trim();
+  if (!elKey)      { showElStatus('error', 'Wpisz klucz ElevenLabs.'); return; }
+  if (!elVoiceId)  { showElStatus('error', 'Wybierz głos z listy.'); return; }
+  speak('Cześć! Tak brzmi wybrany głos lektora. Jak się podoba?');
+});
+
+async function speakElevenLabs(text) {
+  try {
+    const resp = await fetch(`${EL_URL}/text-to-speech/${elVoiceId}/stream`, {
+      method: 'POST',
+      headers: { 'xi-api-key': elKey, 'Authorization': `Bearer ${elKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text,
+        model_id: 'eleven_multilingual_v2',
+        voice_settings: { stability: 0.5, similarity_boost: 0.75, style: 0.2, use_speaker_boost: true }
+      })
+    });
+    if (!resp.ok) {
+      const e = await resp.json().catch(() => null);
+      const msg = e?.detail?.message || e?.detail || `HTTP ${resp.status}`;
+      throw new Error(msg);
+    }
+    const blob = await resp.blob();
+    const url  = URL.createObjectURL(blob);
+    currentAudio = new Audio(url);
+    currentAudio.onended = () => { isSpeaking = false; ttsBtn.textContent = '🔊'; URL.revokeObjectURL(url); };
+    currentAudio.onerror = () => { isSpeaking = false; ttsBtn.textContent = '🔊'; };
+    currentAudio.play();
+  } catch (err) {
+    console.error('ElevenLabs TTS:', err);
+    isSpeaking = false; ttsBtn.textContent = '🔊';
+    speakBrowser(text); // fallback
+  }
+}
+
+function showElStatus(type, msg) {
+  const el = get('el-status');
+  el.className = 'el-status el-status-' + type;
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+/* ============================================================
+   TTS — UNIFIED
+============================================================ */
+function stopSpeaking() {
+  if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+  window.speechSynthesis?.cancel();
+  isSpeaking = false;
+  ttsBtn.textContent = '🔊';
+}
+
+function speak(text) {
+  stopSpeaking();
+  isSpeaking = true;
+  ttsBtn.textContent = '⏸';
+  if (ttsMode === 'elevenlabs' && elKey && elVoiceId) speakElevenLabs(text);
+  else speakBrowser(text);
+}
+
+ttsBtn.addEventListener('click', () => {
+  if (isSpeaking) stopSpeaking();
+  else speak(questions[currentQ].question);
+});
+
+/* ============================================================
+   TTS MODE TABS
+============================================================ */
+function initTtsMode(mode) {
+  ttsMode = mode;
+  localStorage.setItem('tm_tts_mode', mode);
+  get('voice-browser-section').classList.toggle('hidden', mode !== 'browser');
+  get('voice-el-section').classList.toggle('hidden',      mode !== 'elevenlabs');
+  document.querySelectorAll('.vtab').forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
+  syncClassroomSelect();
+
+  // auto-load EL voices if key already saved
+  if (mode === 'elevenlabs' && elKey && !elVoices.length) loadElVoices(true);
+}
+
+document.querySelectorAll('.vtab').forEach(t => t.addEventListener('click', () => initTtsMode(t.dataset.mode)));
+
+/* ============================================================
+   CLASSROOM VOICE SYNC
+============================================================ */
+function syncClassroomSelect() {
+  const sel = get('classroom-voice-select');
+  if (ttsMode === 'elevenlabs') {
+    sel.innerHTML = elVoices.length
+      ? '<option value="">—</option>' + elVoices.map(v => `<option value="${v.voice_id}">${v.name}</option>`).join('')
+      : '<option value="">— załaduj głosy ElevenLabs —</option>';
+    sel.value = elVoiceId;
+  } else {
+    const voices = window.speechSynthesis.getVoices();
+    sel.innerHTML = '<option value="">Domyślny</option>' +
+      voices.map((v, i) => `<option value="${i}">${v.name}</option>`).join('');
+    const saved = localStorage.getItem('tm_browser_voice');
+    if (saved) sel.value = saved;
+  }
+}
+
+get('classroom-voice-select').addEventListener('change', e => {
+  if (ttsMode === 'elevenlabs') {
+    elVoiceId = e.target.value;
+    localStorage.setItem('tm_el_voice', elVoiceId);
+    get('el-voice-select').value = elVoiceId;
+  } else {
+    const voices = window.speechSynthesis.getVoices();
+    browserVoice = e.target.value !== '' ? voices[+e.target.value] : null;
+    if (e.target.value !== '') { localStorage.setItem('tm_browser_voice', e.target.value); get('voice-select').value = e.target.value; }
+  }
+});
+
+/* ============================================================
+   SPEECH RECOGNITION
+============================================================ */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+micBtn.addEventListener('click', () => {
+  if (!SR) { alert('Twoja przeglądarka nie obsługuje rozpoznawania mowy. Użyj Chrome lub Edge.'); return; }
+  isRecording ? stopRecording() : startRecording();
+});
+
+function startRecording() {
+  recognition = new SR();
+  recognition.lang = detectLang(questions[currentQ]?.question || '');
+  recognition.continuous = true; recognition.interimResults = true;
+  transcriptBubble.classList.remove('hidden');
+  transcriptTextEl.textContent = '…'; liveTranscript = '';
+
+  recognition.onresult = e => {
+    let fin = '', int = '';
+    for (const r of e.results) { if (r.isFinal) fin += r[0].transcript; else int += r[0].transcript; }
+    liveTranscript = fin;
+    transcriptTextEl.textContent = (fin + (int ? ' ' + int : '')) || '…';
+    if (fin) answerInput.value = fin;
+  };
+  recognition.onerror = () => stopRecording();
+  recognition.onend   = () => { if (isRecording) recognition.start(); };
+  recognition.start();
+  isRecording = true; micBtn.classList.add('recording'); micBtn.textContent = '⏹';
+}
+
+function stopRecording() {
+  recognition?.stop(); isRecording = false;
+  micBtn.classList.remove('recording'); micBtn.textContent = '🎤';
+  if (liveTranscript) answerInput.value = liveTranscript;
+  setTimeout(() => transcriptBubble.classList.add('hidden'), 2500);
+}
+
+/* ============================================================
+   SUBMIT ANSWER
+============================================================ */
+submitBtn.addEventListener('click', submitAnswer);
+answerInput.addEventListener('keydown', e => { if (e.key === 'Enter' && e.ctrlKey) submitAnswer(); });
+
+async function submitAnswer() {
+  const answer = answerInput.value.trim();
+  if (!answer) { answerInput.focus(); return; }
+  if (isRecording) stopRecording();
+  submitBtn.disabled = true; submitBtn.textContent = 'Sprawdzam…';
+
+  const q = questions[currentQ];
+  try {
+    const raw = await groqChat(MODEL_FAST, [
+      { role: 'system', content: `Oceń odpowiedź ucznia. Odpowiedz WYŁĄCZNIE poprawnym JSON:
+{"correct":true/false,"score":0-100,"feedback":"krótka informacja 1-2 zdania","missing":"czego zabrakło lub null"}` },
+      { role: 'user', content: `Pytanie: ${q.question}\nWzorcowa odpowiedź: ${q.expected_answer}\nOdpowiedź ucznia: ${answer}\n\nOceń.` }
+    ], 512);
+
+    const result = parseJSON(raw);
+    if (result.score >= 60) correctCount++;
+    feedbackIcon.textContent  = result.score >= 60 ? '✅' : '❌';
+    feedbackScore.textContent = `Wynik: ${result.score}/100`;
+    feedbackText.textContent  = result.feedback + (result.missing ? ' Brakowało: ' + result.missing : '');
+    expectedText.textContent  = q.expected_answer;
+  } catch {
+    feedbackIcon.textContent  = '⚠️';
+    feedbackScore.textContent = '';
+    feedbackText.textContent  = 'Nie udało się ocenić. Sprawdź połączenie.';
+    expectedText.textContent  = q.expected_answer;
+  }
+
+  classroomBg.src = DEFAULT_IMG;
+  feedbackOverlay.classList.remove('hidden');
+  submitBtn.disabled = false; submitBtn.textContent = 'Odpowiedz →';
+}
+
+/* ============================================================
+   NEXT / END
+============================================================ */
+nextBtn.addEventListener('click', () => {
+  feedbackOverlay.classList.add('hidden');
+  currentQ++;
+  if (currentQ >= questions.length) endSession(); else displayQuestion(currentQ);
+});
+
+function endSession() {
+  progressFill.style.width = '100%';
+  classroomBg.src = DEFAULT_IMG; stopSpeaking();
+  const pct = Math.round((correctCount / questions.length) * 100);
+  scoreFraction.textContent = `Poprawne odpowiedzi: ${correctCount} z ${questions.length}`;
+  scoreDisplay.textContent  = pct + '%';
+  scoreMsg.textContent      = pct >= 90 ? 'Doskonały wynik! Świetnie opanowałeś materiał.' :
+                               pct >= 75 ? 'Dobry wynik! Kilka zagadnień warto powtórzyć.' :
+                               pct >= 55 ? 'Niezły wynik. Przejrzyj trudniejsze partie materiału.' :
+                                           'Warto jeszcze raz przestudiować notatki.';
+  sessionComplete.classList.remove('hidden');
+}
+
+restartBtn.addEventListener('click', () => {
+  sessionComplete.classList.add('hidden');
+  currentQ = 0; correctCount = 0; displayQuestion(0);
+});
+newNotesBtn.addEventListener('click', () => {
+  sessionComplete.classList.add('hidden'); stopSpeaking();
+  uploadedFiles = []; questions = []; renderFiles(); showScreen('setup');
+});
+</script>
+</body>
+</html>
